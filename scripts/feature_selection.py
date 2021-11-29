@@ -5,7 +5,7 @@ from mixedRVMI import MIEstimate, CMIEstimate
 def backwardFeatureSelection(delta,threshold,features,target,res,k):
     'Ritorna un insieme di features rilevanti per il target'
    
-    featureScores= [] # punteggio per ogni features
+    featureScores= [] # punteggio per ogni feature
     relevantFeatures = features
 
     MIScore = 0
