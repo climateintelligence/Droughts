@@ -54,3 +54,13 @@ def CMIEstimate(X,Y,Z,k=5,estimate='digamma'):
     XZ = np.hstack((X,Z)) # concateno X,Z in colonne
 
     return (MIEstimate(XZ,Y,k,estimate)-MIEstimate(Z,Y,k,estimate))
+
+
+def estimateAllMI(X,Y,k):
+    'Restituisce lista di MI score per ciascuna feature rispetto al target'
+    scores = np.zeros(X.shape[1])
+
+    for col in range(X.shape[1]):
+        scores[col] = MIEstimate(X[:, col], Y, k)
+    
+    return list(zip(range(len(scores)), scores))
