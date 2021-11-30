@@ -20,37 +20,43 @@ if __name__ == "__main__":
     parser.add_argument("--k", type=int) # k-neighbors
     parser.add_argument("--backward", type=str, default="t")
     parser.add_argument("--classification", nargs='?', const=1, type=int) 
+    parser.add_argument("--filename", type=str) # full path to file, it must be a pickle
     args = parser.parse_args()
 
-    input_folder = os.path.join(os.getcwd(), "data", "real")
-    filenames = glob.glob(os.path.join(input_folder, "*.pickle")) # get dataset files in pickle format
+    #input_folder = os.path.join(os.getcwd(), "data", "real")
+    #filenames = glob.glob(os.path.join(input_folder, "*.pickle")) # get dataset files in pickle format
 
-    # loading the first dataset in the folder
-    dataset_file = open(filenames[0], "rb") 
-    dataset = pickle.load(dataset_file) 
-    dataset_file.close() 
+    # --- DATA LOAD ---
+    # for now this tool only supports a single pickle file
+    with open(args.filename, 'rb') as fp:
+        dataset = pickle.load(fp)
 
     # --- FEATURE SELECTION ---
+    # X: n rows for m features
+    # Y: n rows for l features
     features = dataset["X"]
     target = dataset["Y"]
 
+    # grid with different allowed losses w.r.t. the full features dataset
     grid = DELTA_GRID
     grid.sort()
 
+    # if not specified, fixed fraction of samples
     if args.k is None:
-        args.k=len(features)//20 # if not specified, fixed fraction of samples
+        args.k=len(features)//20 
 
+    # set the kind of problem and the dictionary that will store the result
     task = 1 if args.classification == 1 else 0 # task=1 -> classification
 
     res = {
-        "delta" : [],
-        "numSelected" : [],
-        "accuracy" : []
+        "delta" : [], # list with all deltas
+        "numSelected" : [] # 
+    #    "accuracy" : [] # list of scores associated with the new problem
     }
 
     for delta in grid:
         res["delta"].append(delta)
-        threshold = getThreshold(task, target, delta) # soglia per il valore attuale di delta
-        relevantFeatures = backwardFeatureSelection(delta,threshold,features,target,res, args.k) # basato su CMI
-        res["accuracy"].append(computeAccuracy(task, relevantFeatures, target)) # performance di un modello lineare 
+        threshold = getThreshold(task, target, delta) # for the current delta this is the maximum information we want to loose after pruning the worse features
+        relevantFeatures = backwardFeatureSelection(threshold,features,target,res, args.k) # CMI feature selection
+    #    res["accuracy"].append(computeAccuracy(task, relevantFeatures, target)) # performance di un modello lineare 
     
