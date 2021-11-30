@@ -50,13 +50,17 @@ if __name__ == "__main__":
 
     res = {
         "delta" : [], # list with all deltas
-        "numSelected" : [] # 
+        "numSelected" : [], #
+        "selectedFeatures" : [] 
     #    "accuracy" : [] # list of scores associated with the new problem
     }
 
     for delta in grid:
         res["delta"].append(delta)
-        threshold = getThreshold(task, target, delta) # for the current delta this is the maximum information we want to loose after pruning the worse features
+        threshold = getThreshold(task, target, delta) # for the current delta this is the maximum information we want to loose in backward after pruning the worse features
         relevantFeatures = backwardFeatureSelection(threshold,features,target,res, args.k) # CMI feature selection
+        res["selectedFeatures"].append(relevantFeatures)
     #    res["accuracy"].append(computeAccuracy(task, relevantFeatures, target)) # performance di un modello lineare 
     
+    for i in range(len(res["delta"])):
+        print("Delta: {0}, final number of features: {1}, selected features IDs: {2}".format(res["delta"][i], res["numSelected"][i], res["selectedFeatures"][i]))

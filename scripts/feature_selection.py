@@ -6,6 +6,7 @@ def backwardFeatureSelection(threshold,features,target,res,k):
 
     featureScores= []
     relevantFeatures = features # at the beginning all features are included
+    idMap = {k: k for k in range(relevantFeatures.shape[1])} # dictionary with original feature position
     CMIScore = 0 # cumulative loss of information
     sortedScores = []
 
@@ -14,9 +15,14 @@ def backwardFeatureSelection(threshold,features,target,res,k):
         sortedScores = sorted(featureScores, key=lambda x:x[1]) # lista ordinata (ascending) in base al punteggio di ogni feature
         CMIScore += max(sortedScores[0][1],0) # se il punteggio più basso è negativo, prendo 0
         if CMIScore > threshold: break
-        relevantFeatures = np.delete(relevantFeatures, sortedScores[0][0], axis=1) # tolgo la feature (column) con punteggio più basso   
+        relevantFeatures = np.delete(relevantFeatures, sortedScores[0][0], axis=1) # tolgo la feature (column) con punteggio più basso 
+        print("Removing original feature: {0}".format(idMap[sortedScores[0][0]])) # original feature position
+        for a, b in list(idMap.items())[:-1]: # update of the dictionary storing original positions
+            if a >= sortedScores[0][0]:
+                idMap[a] = idMap[a+1]
+        idMap.pop(max(idMap))
     res["numSelected"].append(relevantFeatures.shape[1]) 
-    return relevantFeatures 
+    return list(idMap.values()) 
 
 def scoreFeatures(features, target, k):
     'Ritorna una lista di features ID + punteggio CMI sul dato target'
@@ -24,5 +30,6 @@ def scoreFeatures(features, target, k):
 
     for col in range(features.shape[1]):
         scores[col] = CMIEstimate(features[:, col], target, np.delete(features,col,axis=1), k)
+        print("CMI: {0}".format(scores[col]))
 
     return list(zip(range(len(scores)),scores))
