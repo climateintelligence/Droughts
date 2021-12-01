@@ -23,7 +23,7 @@ def MIEstimate(X,Y,k=5,estimate='digamma'):
     
     for i in range(nSamples):
         k_hat, n_xi, n_yi = k, k, k
-        if Knn_dists[i] == 0:
+        if Knn_dists[i] <= 1e-15:
             # punti a distanza inferiore uguale a (quasi) 0 
             k_hat = len(tree_xy.query_ball_point(dataset[i], 1e-15, p=float('inf')))
             n_xi = len(tree_x.query_ball_point(X[i], 1e-15, p=float('inf')))
@@ -37,7 +37,6 @@ def MIEstimate(X,Y,k=5,estimate='digamma'):
             res+=(digamma(k_hat) + np.log(nSamples) - digamma(n_xi) - digamma(n_yi))/nSamples
         else:
             res+=(digamma(k_hat) + np.log(nSamples) - np.log(n_xi+1) - np.log(n_yi+1))/nSamples
-        # risultato diverso se uso digamma(n_xi), digamma(n_yi)
     return res
 
 def CMIEstimate(X,Y,Z,k=5,estimate='digamma'):
