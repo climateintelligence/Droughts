@@ -1,5 +1,5 @@
 import numpy as np
-from mixedRVMI import CMIEstimate
+from feature_selection.mixedRVMI import CMIEstimate
 
 def backwardFeatureSelection(threshold,features,target,res,k):
     'the function returns the selected features starting from the full dataset and removing features keeping the loss of information smaller than the threshold'
@@ -33,3 +33,9 @@ def scoreFeatures(features, target, k):
         print("CMI: {0}".format(scores[col]))
 
     return list(zip(range(len(scores)),scores))
+
+def getThreshold(task, target, delta):
+    if task == 1: # classification task
+        return (delta**2)/2
+    else:
+        return delta/2*np.max(target)**2 # l-infinity norm
