@@ -15,7 +15,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--k", type=int) # k-neighbors
     parser.add_argument("--backward", type=str, default="t")
-    parser.add_argument("--ScaleAndNoise", type=str, default="scaleAndNoise")
+    parser.add_argument("--ScaleAndNoise", type=str, default="ScaleAndNoise")
     parser.add_argument("--classification", nargs='?', const=1, type=int) 
     parser.add_argument("--filename", type=str) # full path to file, it must be a pickle
     args = parser.parse_args()
@@ -55,7 +55,7 @@ if __name__ == "__main__":
         "selectedFeatures" : [] 
     #    "accuracy" : [] # list of scores associated with the reduced problem
     }
-
+    
     for delta in grid:
         print("Current Delta: {0}".format(delta))
         res["delta"].append(delta)
