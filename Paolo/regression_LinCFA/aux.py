@@ -52,8 +52,8 @@ def compute_r2(x_train, y_train, x_val, y_val):
     y_pred = regr.predict(x_val)
     return r2_score(y_val, y_pred)
 
-def prepare_target(colname,max_train='2013-11-22', max_val='2018-04-10', max_test='2022-06-24'):
-    target_df = pd.read_csv('/Users/paolo/Documents/OneDrive - Politecnico di Milano/droughts/csv_VHI/Emiliani2.csv')
+def prepare_target(colname,max_train='2013-11-22', max_val='2018-04-10', max_test='2022-06-24', path='/Users/paolo/Documents/OneDrive - Politecnico di Milano/droughts/csv_VHI/Emiliani2.csv'):
+    target_df = pd.read_csv(path)
     target_df = target_df.rename({'Unnamed: 0':'date'},axis=1)
     target_df_train = target_df.loc[target_df['date']<=max_train,:].copy()
     target_df_val = target_df.loc[(target_df['date']>max_train) & (target_df['date']<=max_val),:].copy()

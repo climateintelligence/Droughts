@@ -52,8 +52,8 @@ def compute_r2(x_train, y_train, x_val, y_val):
     y_pred = regr.predict(x_val)
     return r2_score(y_val, y_pred)
 
-def prepare_target(colname,max_train='2013-11-22', max_val='2018-04-10', max_test='2022-06-24'):
-    target_df = pd.read_csv('/Users/paolo/Documents/OneDrive - Politecnico di Milano/droughts/csv_VHI/Emiliani2.csv')
+def prepare_target(colname,max_train='2013-11-22', max_val='2018-04-10', max_test='2022-06-24', path='/Users/paolo/Documents/OneDrive - Politecnico di Milano/droughts/csv_VHI/Emiliani2.csv'):
+    target_df = pd.read_csv(path)
     target_df = target_df.rename({'Unnamed: 0':'date'},axis=1)
     target_df_train = target_df.loc[target_df['date']<=max_train,:].copy()
     target_df_val = target_df.loc[(target_df['date']>max_train) & (target_df['date']<=max_val),:].copy()
@@ -77,7 +77,7 @@ def prepare_features(path, colName, multiple=False, max_train='2013-11-22', max_
         else: df = pd.read_csv(path)
     else: df = path 
 
-    df_train = df.loc[df['date']<=max_train,:]
+    df_train = df.loc[(df['date']>'2010-09-10') & (df['date']<=max_train),:]
     df_val = df.loc[(df['date']>max_train) & (df['date']<=max_val),:]
     df_test = df.loc[(df['date']>max_val) & (df['date']<=max_test),:]
     
@@ -106,7 +106,7 @@ def aggregate_unfolded_data(path,colnames, target_df_trainVal, eps, multiple=Fal
     for col in colnames:
         df_train_unfolded_std,df_val_unfolded_std,df_test_unfolded_std,df_trainVal_unfolded_std = prepare_features(path,col,multiple,max_train,max_val,max_test)
         df_trainVal_unfolded_std_withTar = pd.concat((df_trainVal_unfolded_std,target_df_trainVal['mean_std']), axis=1)
-        print(f'Number of features: {df_train_unfolded_std.shape[1]}\n')            
+        print(f'Number of features: {df_train_unfolded_std.shape[1]}\n') 
         output = NonLinCFA(df_trainVal_unfolded_std_withTar,'mean_std', eps, -5 , neigh).compute_clusters()
 
         for i in range(len(output)):
@@ -117,7 +117,62 @@ def aggregate_unfolded_data(path,colnames, target_df_trainVal, eps, multiple=Fal
         print(f'Number of aggregated features: {len(output)}\n')
         
     return output,aggregate_trainVal,aggregate_test 
+
+def aggregate_data_withoutUnfolding(df, target_df_trainVal, eps, multiple=False, max_train='2013-11-22', max_val='2018-04-10', max_test='2022-12-31', neigh=1):
+
+    aggregate_trainVal = pd.DataFrame()
+    aggregate_test = pd.DataFrame()
+
+    df_train = df.loc[df['date']<=max_train,:]
+    df_val = df.loc[(df['date']>max_train) & (df['date']<=max_val),:]
+    df_test = df.loc[(df['date']>max_val) & (df['date']<=max_test),:]
+
+    df_train_std, df_val_std, df_test_std = standardize(df_train.iloc[:,1:], df_val.iloc[:,1:], df_test.iloc[:,1:])
+    df_train_std = pd.DataFrame(data=df_train_std, columns=df_train.columns[1:])
+    df_val_std = pd.DataFrame(data=df_val_std, columns=df_val.columns[1:])
+    df_test_std = pd.DataFrame(data=df_test_std, columns=df_test.columns[1:])
+    df_trainVal_std = pd.concat([df_train_std,df_val_std],axis=0).reset_index(drop=True)
+
+    df_trainVal_std_withTar = pd.concat((df_trainVal_std,target_df_trainVal['mean_std']), axis=1)
+    #noise = np.random.normal(0, 0.01, df_trainVal_std_withTar.shape)
+    df_trainVal_std_withTar = df_trainVal_std_withTar#+noise
+    print(f'Number of features: {df_train_std.shape[1]}\n')   
+
+    output = NonLinCFA(df_trainVal_std_withTar,'mean_std', eps, -5 , neigh).compute_clusters()
+
+    for i in range(len(output)):
+        aggregate_trainVal['snow_'+df.columns[1][-2:]+str(i)] = df_trainVal_std_withTar[output[i]].mean(axis=1)
+        aggregate_trainVal = aggregate_trainVal.copy()
+        aggregate_test['snow_'+df.columns[1][-2:]+str(i)] = df_test_std[output[i]].mean(axis=1)
+        aggregate_test = aggregate_test.copy()
+    print(f'Number of aggregated features: {len(output)}\n')
+        
+    return output,aggregate_trainVal,aggregate_test 
     
+def aggregate_unfolded_data_onlyTrain(path,colnames, target_df_train, target_df_val, eps, multiple=False, max_train='2013-11-22', max_val='2018-04-10', max_test='2022-12-31', neigh=1):
+
+    aggregate_train = pd.DataFrame()
+    aggregate_val = pd.DataFrame()
+    aggregate_test = pd.DataFrame()
+
+    for col in colnames:
+        df_train_unfolded_std,df_val_unfolded_std,df_test_unfolded_std,df_trainVal_unfolded_std = prepare_features(path,col,multiple,max_train,max_val,max_test)
+        df_train_unfolded_std_withTar = pd.concat((df_train_unfolded_std,target_df_train['mean_std']), axis=1)
+        print(f'Number of features: {df_train_unfolded_std.shape[1]}\n')            
+        output = NonLinCFA(df_train_unfolded_std_withTar,'mean_std', eps, -5 , neigh).compute_clusters() ### only train for aggregating
+
+        for i in range(len(output)):
+            aggregate_train[col+'_'+str(i)] = df_train_unfolded_std_withTar[output[i]].mean(axis=1)
+            aggregate_train = aggregate_train.copy()
+            aggregate_val[col+'_'+str(i)] = df_val_unfolded_std[output[i]].mean(axis=1)
+            aggregate_val = aggregate_val.copy()
+            aggregate_test[col+'_'+str(i)] = df_test_unfolded_std[output[i]].mean(axis=1)
+            aggregate_test = aggregate_test.copy()
+        print(f'Number of aggregated features: {len(output)}\n')
+        
+    return output,aggregate_train,aggregate_val,aggregate_test 
+    
+
 def FS_with_linearWrapper(aggregate_trainVal, target_df_train, target_df_val, max_feat, val_len=200):
     aggregate_train = aggregate_trainVal.iloc[:-val_len]
     aggregate_val = aggregate_trainVal.iloc[-val_len:]  
@@ -176,3 +231,5 @@ def compare_methods(aggregate_trainVal, aggregate_test, target_df_trainVal, targ
     fs_aggr_regr_score = fs_aggr_regr.score(aggregate_test[selected_colnames],target_df_test['mean_std'])
     fs_aggr_regr_train_score = fs_aggr_regr.score(aggregate_trainVal[selected_colnames],target_df_trainVal['mean_std'])
     print(f'Aggregate regression train score with FS: {fs_aggr_regr_train_score}, test score: {fs_aggr_regr_score}')
+
+    return fs_aggr_regr_score
