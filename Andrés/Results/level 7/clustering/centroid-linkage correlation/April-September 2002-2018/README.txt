@@ -1,0 +1,59 @@
+Level 7, April-September
+
+4062 -> 3586: sub-basins dropped because they have some NA
+
+Centroid-linkage correlation
+
+corr08.png: No. clusters (w/o singletons) = 130, No. singletons = 62
+
+corr085.png: No. clusters (w/o singletons) = 245, No. singletons = 87
+
+corr09.png: No. clusters (w/o singletons) = 481, No. singletons = 219
+
+
+
+Average internal correlation and minimum internal correlation of the 10 biggest clusters obtained considering centroid-linkage: 
+
+Cluster 0
+Avg. correlation : 0.6455903958065625
+Min. correlation : 0.20767591535575555, between points : ('34.886770430362944_54.5016941327247', '20.448328810849347_48.46388556394357')
+
+Cluster 1
+Avg. correlation : 0.6893729100771481
+Min. correlation : 0.2685630291388035, between points : ('39.96401636717924_60.188599991703995', '27.24534197362462_69.09199727187654')
+
+Cluster 2
+Avg. correlation : 0.7178488725795783
+Min. correlation : 0.3909984434327757, between points : ('58.90303455029668_66.3816280529937', '46.46302552388567_62.46853328600587')
+
+Cluster 3
+Avg. correlation : 0.7692767487278335
+Min. correlation : 0.34053578059200573, between points : ('37.39476981077617_40.44551453521466', '27.400101602255067_37.37695426314935')
+
+Cluster 4
+Avg. correlation : 0.7029170343373107
+Min. correlation : 0.34906017310614673, between points : ('14.997552683283503_52.09439859025747', '19.168679800182982_54.1870965519126')
+
+Cluster 5
+Avg. correlation : 0.7437314268949535
+Min. correlation : 0.45763633432681516, between points : ('20.19821382478531_47.43011556564624', '25.21690659493765_45.85652378501263')
+
+Cluster 6
+Avg. correlation : 0.7312012087271307
+Min. correlation : 0.26359645303062046, between points : ('-6.255267253113475_41.48218078995359', '-2.7035463300793845_37.42907120276249')
+
+Cluster 7
+Avg. correlation : 0.7184032027459002
+Min. correlation : 0.3885390338062869, between points : ('40.07304530850304_45.85141166050515', '31.835822000929344_46.97660784889324')
+
+Cluster 8
+Avg. correlation : 0.7134933079758827
+Min. correlation : 0.39894861778112745, between points : ('45.059945481168114_49.3006894386191', '38.19595332099865_48.955007760692')
+
+Cluster 9
+Avg. correlation : 0.7142895068120145
+Min. correlation : 0.41101439189909017, between points : ('14.098248073047909_48.800848352399065', '18.14915360059241_47.78122513667114')
+
+Cluster 10
+Avg. correlation : 0.760284057030558
+Min. correlation : 0.3714645361931035, between points : ('30.598630025134742_47.333944534779974', '25.91846643420519_41.844225150834276')
