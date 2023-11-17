@@ -1,232 +1,150 @@
 import numpy as np
 from tqdm import tqdm
+import matplotlib.pyplot as plt
+import math
 
+def get_corr_mask(arr1, arr2):
+    arr1_mask = ~np.isnan(arr1)
+    arr2_mask = ~np.isnan(arr2)
 
+    mask = arr1_mask * arr2_mask
+    corr_masked = np.corrcoef(np.array(arr1)[mask], np.array(arr2)[mask])[0, 1]
+    return corr_masked
 
+def plot_clusters_shp(shapefile, clusters, figsize=(8,8), only_stats=False):
+    shp = shapefile.copy()
 
-def compute_neighbours(df, max_distance=1):
-    neighbours = []
-    coordinates = df.columns
-
-    print("Computing neighbours...")
-    progress_bar = tqdm(total=len(coordinates), position=0, leave=True, smoothing=0)
-
-    for idx, coord1 in enumerate(coordinates):
-        for idx2, coord2 in enumerate(coordinates[idx + 1:], start=idx + 1):
-            x1, y1 = map(float, coord1.split('_'))
-            x2, y2 = map(float, coord2.split('_'))
-            distance = np.linalg.norm(np.array([x1, y1]) - np.array([x2, y2]))
-            
-            if distance < max_distance:
-                neighbours.append((coord1, coord2))
-
-        progress_bar.update(1) 
-
-    print("neighbours computed")
-    return neighbours
-
-def compute_clusters(df, neighbours, without_neighbours, method, threshold, keep_singletons=True):
+    clusters_no_singletons = remove_singletons(clusters)
+    singletons = clusters[len(clusters_no_singletons):]
     
-    neighbours_strength_dict = get_neighbours_strength_dict(df, neighbours, method)     
+    print(f'No. clusters (w/o singletons) = {len(clusters_no_singletons)}')
+    print(f'No. singletons = {len(singletons)}')
+    if only_stats==False:    
+        progress_bar = tqdm(total=shp.shape[0], position=0, leave=True, smoothing=0)
 
-    cluster_num = 0
-    clusters_list = []
-    clustering_complete = True
-
-    print("Computing clusters...")
-    progress_bar = tqdm(total=df.shape[1], position=0, leave=True, smoothing=0)
-
-    while clustering_complete:
-        sorted_keys = sorted(neighbours_strength_dict.keys(), key=neighbours_strength_dict.get, reverse=True)
-        clustering_complete = False
-
-        for max_strength in sorted_keys:
-            # Check for new clusters if none have been made in this iteration yet
-            if clustering_complete :
-                break
+        clusterid = 0
+        for cluster in clusters:
+            for elem in cluster:
+                shp.loc[(shp['SUBID'] == elem), 'CLUSTERID'] = clusterid
+                        
+                progress_bar.update(1)
             
-            elif enough_strength(neighbours_strength_dict[max_strength], method, threshold):
-                x1, y1, x2, y2 = max_strength.split("_")
-                
-                # Update cluster and correlation values
-                if x1 == "cluster" and not x2 == "cluster":
-                    cluster_index = int(y1)
-                    clusters_list[cluster_index].append(x2 + "_" + y2)
-                    del neighbours_strength_dict[max_strength]
-                    refresh_corr_values(df, neighbours_strength_dict, x1 + "_" + y1, x2 + "_" + y2, cluster_index, clusters_list, method)
-                    
-                elif not x1 == "cluster" and x2 == "cluster":
-                    cluster_index = int(y2)
-                    clusters_list[cluster_index].append(x1 + "_" + y1)
-                    del neighbours_strength_dict[max_strength]
-                    refresh_corr_values(df, neighbours_strength_dict, x1 + "_" + y1, x2 + "_" + y2, cluster_index, clusters_list, method)
+            clusterid += 1
 
-                elif not x1 == "cluster" and not x2 == "cluster":
-                    clusters_list.append([x1 + "_" + y1, x2 + "_" + y2])
-                    del neighbours_strength_dict[max_strength]
-                    refresh_corr_values(df, neighbours_strength_dict, x1 + "_" + y1, x2 + "_" + y2, cluster_num, clusters_list, method)
-                    cluster_num += 1
-                    
-                else: # case both are clusters
-                    cluster_index = min(int(y1), int(y2))
-                    to_be_removed = max(int(y1), int(y2))
-                    clusters_list[cluster_index].extend(clusters_list[to_be_removed])
-                    del neighbours_strength_dict[max_strength]   
-                    refresh_corr_values(df, neighbours_strength_dict, x1 + "_" + y1, x2 + "_" + y2, cluster_index, clusters_list, method)
-                    clusters_list = remove_cluster(neighbours_strength_dict, to_be_removed, clusters_list)
-                    cluster_num -= 1
-
-                progress_bar.update(1)  
-                clustering_complete = True
-
-    if keep_singletons == True:
-        # Add the remaining isolated points to the list of clusters
-        for key in neighbours_strength_dict:
-            x1, y1, x2, y2 = key.split("_")
-            elem1 = [x1 + "_" + y1]
-            elem2 = [x2 + "_" + y2]
-
-            if not x1 == "cluster" and elem1 not in clusters_list:
-                clusters_list.append(elem1)
-
-            if not x2 == "cluster" and elem2 not in clusters_list:
-                clusters_list.append(elem2)
-
-            progress_bar.update(1)    
-
-        for elem in without_neighbours:
-            clusters_list.append([elem])
-            progress_bar.update(1)     
-
-    print("Clusters computed.")
-    clusters_list = sorted(clusters_list, key=lambda x: len(x), reverse=True)
-    return clusters_list
-
-def get_neighbours_strength_dict(df, neighbours, method):
-
-    print("Computing neighbours strengths...")
-    progress_bar = tqdm(total=len(neighbours), position=0, leave=True, smoothing=0)
-
-    neighbours_strength_dict = {}
-
-    if method == 'correlation' or method == 'complete_correlation':
-        for neighbor_pair in neighbours:
-            neighbor1, neighbor2 = neighbor_pair
-
-            strength = np.corrcoef(df[neighbor1], df[neighbor2])[0, 1]
-            neighbours_strength_dict['_'.join(neighbor_pair)] = strength
-            progress_bar.update(1)  
-
-    elif method == 'distance':
-        for neighbor_pair in neighbours:
-            neighbor1, neighbor2 = neighbor_pair
-            strength = np.linalg.norm(df[neighbor1] - df[neighbor2])
-            neighbours_strength_dict['_'.join(neighbor_pair)] = strength   
-            progress_bar.update(1)  
-    
-    print("Neighbours strengths computed.")
-    return neighbours_strength_dict    
-
-def get_neighbours_strength(df, cluster_index, cluster_mean, x2, y2, clusters_list, method):
-    strength = ''
-
-    if method == 'correlation':
-        elem2 = df[clusters_list[int(y2)]].mean(axis=1) if x2 == "cluster" else df[x2 + "_" + y2]
-        strength = np.corrcoef(cluster_mean, elem2)[0, 1]
-
-    elif method == 'complete_correlation':
-        strength = 1
-        if x2 == "cluster":
-            cluster1 = df[clusters_list[cluster_index]]
-            cluster2 = df[clusters_list[int(y2)]]
-            for elem1 in cluster1.columns:
-                for elem2 in cluster2.columns:
-                    strength_temp = np.corrcoef(df[elem1], df[elem2])[0, 1]
-                    if strength_temp < strength:
-                        strength = strength_temp
-
-        else:
-            cluster1 = df[clusters_list[cluster_index]]
-            for elem1 in cluster1.columns:
-                strength_temp = np.corrcoef(df[elem1], df[x2 + "_" + y2])[0, 1]
-                if strength_temp < strength:
-                    strength = strength_temp    
-
-    elif method == 'distance':
-        elem2 = df[clusters_list[int(y2)]].mean(axis=1) if x2 == "cluster" else df[x2 + "_" + y2]
-        strength = np.linalg.norm(cluster_mean - elem2)
-
-    else:
-        raise ValueError("Unsupported method. Supported methods are 'correlation', 'complete_correlation and 'distance'.")
-
-    return strength
-
-def enough_strength(strength, method, threshold):
-    if method == 'correlation' or method == 'complete_correlation':
-        return strength >= threshold
-    elif method == 'distance':
-        return strength <= threshold
-    else:
-        raise ValueError("Unsupported method. Supported methods are 'correlation', 'complete_correlation' and 'distance'.")
-
-
-def refresh_corr_values(df, neighbours_strength_dict, name_elem1, name_elem2, cluster_index, clusters_list, method):
-    cluster_mean = df[clusters_list[cluster_index]].mean(axis=1)
-    for key in list(neighbours_strength_dict.keys()):
-        x1, y1, x2, y2 = key.split("_")
-
-        if (x1 + "_" + y1) in (name_elem1, name_elem2):
-                
-            strength = get_neighbours_strength(df, cluster_index, cluster_mean, x2, y2, clusters_list, method)
-            new_key = f'cluster_{cluster_index}_{x2}_{y2}'
-            inverse_new_key = f'{x2}_{y2}_cluster_{cluster_index}'
-
-            # Check if x1_y1 is already a cluster and doesn't change cluster_index
-            if (new_key == key): 
-                neighbours_strength_dict[key] = strength
-            else:
-                # Check if the same cluster has been considered previously (a common neighbor)
-                if inverse_new_key not in neighbours_strength_dict and new_key not in neighbours_strength_dict:
-                    neighbours_strength_dict[new_key] = strength
-                del neighbours_strength_dict[key]
+        unique_cluster_ids = shp['CLUSTERID'].unique()
+        num_unique_ids = len(unique_cluster_ids)
         
-        elif (x2 + "_" + y2) in (name_elem1, name_elem2):
+        #seed_value = 45
+        #np.random.seed(seed_value)
+        random_colors = np.random.rand(num_unique_ids, 3)  # RGB values
 
-            strength = get_neighbours_strength(df, cluster_index, cluster_mean, x1, y1, clusters_list, method)
-            new_key = f'{x1}_{y1}_cluster_{cluster_index}'
-            inverse_new_key = f'cluster_{cluster_index}_{x1}_{y1}'
-            
-            if (new_key == key):
-                neighbours_strength_dict[key] = strength
-            else:  
-                if inverse_new_key not in neighbours_strength_dict and new_key not in neighbours_strength_dict:
-                    neighbours_strength_dict[new_key] = strength
-                del neighbours_strength_dict[key]
-    return
+        # Create a dictionary to map CLUSTERID to its corresponding random color
+        clusterid_to_color = dict(zip(unique_cluster_ids, random_colors))
 
-# once the dictionary has been refreshed, I have to change name to every cluster > i to i-1 and to remove clusters_list[i]
-def remove_cluster(neighbours_strength_dict, to_be_removed, clusters_list):
-    for key in list(neighbours_strength_dict.keys()):
-        modified_key = ""
-        # !!! there could be more than one cluster_i in the same key to be updated
-        updated = False
-        for cluster_num in range(to_be_removed+1, len(clusters_list)): 
-            
-            if f'cluster_{cluster_num}' in key:
-                if updated:
-                    decomposed_key = modified_key.split('_')
-                else:
-                    decomposed_key = key.split('_')
 
-                new_key = '_'.join([str(cluster_num-1) if subkey == str(cluster_num) else subkey for subkey in decomposed_key])
-                modified_key = new_key
-                updated = True    
+        # Map each CLUSTERID to its corresponding random color
 
-        if updated:
-            neighbours_strength_dict[new_key] = neighbours_strength_dict.pop(key)
+        shp['color'] = shp['CLUSTERID'].apply(lambda x: clusterid_to_color[x])
+
+        shp.plot(figsize=figsize, color=shp['color'])
+
+def plot_hist_with_mean(arr, title="", xlabel='avg. correlation between original sub-basins and new sub-basin', ylabel='count'):
+    arr = np.array(arr)[~np.isnan(arr)]
+    mean_value = np.mean(arr)
+    plt.hist(arr, bins=np.array(range(700, 1025, 25))/1000)
+    plt.axvline(mean_value, color='red', linestyle='dashed', linewidth=2, label='Mean')
+
+    plt.text(mean_value-0.01, plt.ylim()[1], f'Mean: {mean_value:.3f}', color='red', fontsize=12, ha='right', va='top')
+
+    plt.title(title, fontsize = 16)
+    plt.xlabel(xlabel, fontsize=12)
+    plt.ylabel(ylabel, fontsize=12)
+    plt.show()
+
+def plot_cluster_stats(df, cluster_num, clusters, clusters_weighted_mean, min_inter_corr_subids, avg_corr_with_mean, avg_inter_corr, min_inter_corr):
+    #print(f'clusters_weighted_mean: {clusters_weighted_mean[cluster_num]}'
+    print(f'avg_corr_with_mean: {avg_corr_with_mean[cluster_num]:.3f}')
+    print(f'avg_inter_corr: {avg_inter_corr[cluster_num]:.3f}')
+    print(f'min_inter_corr: {min_inter_corr[cluster_num]:.3f}')
+
+    plt.figure(figsize=(20,5))
+    plt.plot(df[clusters[cluster_num]],color='C0')
+    #cluster_no_mins = [elem for elem in clusters[cluster_num] if elem not in min_inter_corr_subids[cluster_num]]
+    #plt.plot(df[cluster_no_mins],color='blue')
+    #plt.plot(df[min_inter_corr_subids[cluster_num]],color='red', linewidth=2)
+    plt.plot(clusters_weighted_mean[cluster_num],color='red', linewidth=3)
+
+def correlations_sub_cluster(df, clusters, clusters_mean):
+    avg_correlations = []
+    progress_bar = tqdm(total=len(clusters), position=0, leave=True, smoothing=0)
+
+    for i in range(len(clusters)):
+        correlations = []
+        for elem in clusters[i]:
+            corr = get_corr_mask(df[elem], clusters_mean[i])
+            correlations.append(corr)
+
+        avg_correlations.append(np.mean(correlations))
+        progress_bar.update(1)
+
+    return avg_correlations   
+
+def compute_clusters_mean(df, shp, clusters, weighted=True):
+    clusters_mean = []
+    progress_bar = tqdm(total=len(clusters), position=0, leave=True, smoothing=0)
     
-    new_clusters_list = clusters_list[:to_be_removed] + clusters_list[to_be_removed+1:]
-    return new_clusters_list
+    for cluster in clusters:
+        df_temp = df[cluster].copy()
+        if weighted:
+            cluster_area = shp.loc[shp["SUBID"].isin(df_temp.columns), "AREA"].sum()
+        for elem in cluster:
+            if weighted:
+                df_temp[elem] = df_temp[elem]*(shp.loc[shp["SUBID"] == elem, "AREA"].iloc[0])
+
+        if weighted:
+            clusters_mean.append(df_temp.sum(axis=1)/cluster_area)    
+        else:
+            clusters_mean.append(df_temp.sum(axis=1))    
+        progress_bar.update(1)
+    return clusters_mean
+
+# It considers only clusters with at least 2 sub-basins
+# Some clusters with two or more sub-basins never have two sub-basin FAPAN values at the same time.
+def compute_avg_min_internal_corr(df, clusters):
+    clusters_no_singletons = remove_singletons(clusters)
+    
+    avg_inter_corr = []
+    min_inter_corr = []
+    min_inter_corr_subids = []
+
+    progress_bar = tqdm(total=len(clusters_no_singletons), position=0, leave=True, smoothing=0)
+    for cluster in range(len(clusters_no_singletons)):
+        min_correlation = 1
+        avg_correlation = 0
+        length = len(clusters[cluster])
+        count = 0
+        for i in range(length-1):
+            for j in range(i+1, length):
+                correlation = get_corr_mask(df[clusters[cluster][i]], df[clusters[cluster][j]])
+                
+                if not math.isnan(correlation):
+                    count += 1
+                    avg_correlation = avg_correlation + correlation
+                    if correlation <= min_correlation:
+                        min_correlation = correlation
+                        subids = [clusters[cluster][i], clusters[cluster][j]]         
+
+        if count > 0:
+            avg_correlation = avg_correlation / count  
+        
+            avg_inter_corr.append(avg_correlation)
+            min_inter_corr.append(min_correlation)
+            min_inter_corr_subids.append(subids)
+
+        progress_bar.update(1)
+
+    return avg_inter_corr, min_inter_corr, min_inter_corr_subids
+
 
 def remove_singletons(clusters_list):
     new_clusters_list = clusters_list.copy()
@@ -244,198 +162,30 @@ def remove_singletons(clusters_list):
 
     return new_clusters_list
 
-"""
-def compute_neighbours(df, max_distance=1):
-    neighbours = []
-    coordinates = df.columns
 
-    print("Computing neighbours...")
-    progress_bar = tqdm(total=len(coordinates), position=0, leave=True, smoothing=0)
-
-    for idx, coord1 in enumerate(coordinates):
-        for idx2, coord2 in enumerate(coordinates[idx + 1:], start=idx + 1):
-            distance = np.linalg.norm(np.array(coord1) - np.array(coord2))
-            if distance < max_distance:
-                neighbours.append((coord1, coord2))
-
-        progress_bar.update(1) 
-
-    print("neighbours computed")
-    return neighbours
-
-def compute_clusters(df, neighbours, method, threshold, noise=False):
-    neighbours_strength_dict = get_neighbours_strength_dict(df, neighbours, method)     
-    cluster_num = 0
-    clusters_list = []
-    clustering_complete = True
-
-    print("Computing clusters...")
-    progress_bar = tqdm(total=df.shape[1], position=0, leave=True, smoothing=0)
-
-    while clustering_complete:
-        sorted_keys = sorted(neighbours_strength_dict.keys(), key=neighbours_strength_dict.get, reverse=True)
-        clustering_complete = False
-
-        for max_strength in sorted_keys:
-            # Check for new clusters if none have been made in this iteration yet
-            if clustering_complete :
-                break
-            
-            elif enough_strength(neighbours_strength_dict[max_strength], method, threshold):
-                (x1, y1), (x2, y2) = max_strength
-                
-                # Update cluster and correlation values
-                if x1 == "cluster" and not x2 == "cluster":
-                    cluster_index = int(y1)
-                    clusters_list[cluster_index].append((x2, y2))
-                    del neighbours_strength_dict[max_strength]
-                    refresh_corr_values(df, neighbours_strength_dict, (x1, y1), (x2, y2), cluster_index, clusters_list, method)
-                    
-                elif not x1 == "cluster" and x2 == "cluster":
-                    cluster_index = int(y2)
-                    clusters_list[cluster_index].append((x1, y1))
-                    del neighbours_strength_dict[max_strength]
-                    refresh_corr_values(df, neighbours_strength_dict, (x1, y1), (x2, y2), cluster_index, clusters_list, method)
-
-                elif not x1 == "cluster" and not x2 == "cluster":
-                    clusters_list.append([(x1, y1), (x2, y2)])
-                    del neighbours_strength_dict[max_strength]
-                    refresh_corr_values(df, neighbours_strength_dict, (x1, y1), (x2, y2), cluster_num, clusters_list, method)
-                    cluster_num += 1
-                    
-                else: # case both are clusters
-                    cluster_index = min(int(y1), int(y2))
-                    to_be_removed = max(int(y1), int(y2))
-                    clusters_list[cluster_index].extend(clusters_list[to_be_removed])
-                    del neighbours_strength_dict[max_strength]   
-                    refresh_corr_values(df, neighbours_strength_dict, (x1, y1), (x2, y2), cluster_index, clusters_list, method)
-                    clusters_list = remove_cluster(neighbours_strength_dict, to_be_removed, clusters_list)
-                    cluster_num -= 1
-
-                progress_bar.update(1)  
-                clustering_complete = True
-
-    if noise == True:
-        # Add the remaining isolated points to the list of clusters
-        for key in neighbours_strength_dict:
-            elem1, elem2 = key
-
-            if not x1 == "cluster" and elem1 not in clusters_list:
-                clusters_list.append(elem1)
-
-            if not x2 == "cluster" and elem2 not in clusters_list:
-                clusters_list.append(elem2)
-
-            progress_bar.update(1)    
-
-    print("Clusters computed")
-    return clusters_list
-
-def refresh_corr_values(df, neighbours_strength_dict, name_elem1, name_elem2, cluster_index, clusters_list, method):
-
-    for key in list(neighbours_strength_dict.keys()):
-        (x1, y1), (x2, y2) = key
-
-        if (x1, y1) in (name_elem1, name_elem2):
-                
-            strength = get_neighbours_strength(df, cluster_index, (x2, y2), clusters_list, method)
-            #strength = np.corrcoef(other_coord_mean, cluster_mean)[0, 1]
-            new_key = ("cluster", cluster_index), (x2, y2)
-            inverse_new_key = (x2, y2), ("cluster", cluster_index)
-
-            # Check if x1_y1 is already a cluster and doesn't change cluster_index
-            if (new_key == key): 
-                neighbours_strength_dict[key] = strength
-            else:
-                # Check if the same cluster has been considered previously (a common neighbor)
-                if inverse_new_key not in neighbours_strength_dict and new_key not in neighbours_strength_dict:
-                    neighbours_strength_dict[new_key] = strength
-                del neighbours_strength_dict[key]
+# input clusters should be ordered from biggest to smallets
+def get_clustering_correlation_analysis(df, clusters):
+    clusters_no_singletons = remove_singletons(clusters)
+    avg_total_correlation = 0
+    for cluster in range(len(clusters_no_singletons)):
+        min_correlation = 1
+        avg_correlation = 0
+        length = len(clusters[cluster])
         
-        elif (x2, y2) in (name_elem1, name_elem2):
+        for i in range(length-1):
+            for j in range(i+1, length):
+                correlation = np.corrcoef(df[clusters[cluster][i]], df[clusters[cluster][j]])[0][1]
+                avg_correlation = avg_correlation + correlation
+                if correlation < min_correlation:
+                    min_correlation = correlation
+                    points = (clusters[cluster][i], clusters[cluster][j])
+        avg_correlation = avg_correlation / sum(range(1, length))      
 
-            strength = get_neighbours_strength(df, cluster_index, (x1, y1), clusters_list, method)
-            #strength = np.corrcoef(other_coord_mean, cluster_mean)[0, 1]
-            new_key = (x1, y1), ("cluster", cluster_index)
-            inverse_new_key = ("cluster", cluster_index), (x1, y1)
-            
-            if (new_key == key):
-                neighbours_strength_dict[key] = strength
-            else:  
-                if inverse_new_key not in neighbours_strength_dict and new_key not in neighbours_strength_dict:
-                    neighbours_strength_dict[new_key] = strength
-                del neighbours_strength_dict[key]
-    return
+        print(f'Cluster {cluster}')
+        print(f'Avg. correlation : {avg_correlation}')            
+        print(f'Min. correlation : {min_correlation}, between points : {points}\n')        
 
+        avg_total_correlation = avg_total_correlation + avg_correlation
 
-def get_neighbours_strength_dict(df, neighbours, method):
-    neighbours_strength_dict = {}
-
-    if method == 'correlation':
-        for neighbor_pair in neighbours:
-            neighbor1, neighbor2 = neighbor_pair
-            strength = np.corrcoef(df[neighbor1], df[neighbor2])[0, 1]
-            neighbours_strength_dict[neighbor_pair] = strength
-
-    elif method == 'distance':
-        for neighbor_pair in neighbours:
-            neighbor1, neighbor2 = neighbor_pair
-            strength = np.linalg.norm(df[neighbor1] - df[neighbor2])
-            neighbours_strength_dict[neighbor_pair] = strength    
-
-    return neighbours_strength_dict    
-
-def get_neighbours_strength(df, cluster_index, elem2, clusters_list, method):
-    elem1 = df[clusters_list[cluster_index]].mean(axis=1)
-    elem2 = df[clusters_list[int(elem2[1])]].mean(axis=1) if elem2[0] == "cluster" else df[elem2]
-
-    if method == 'correlation':
-        strength = np.corrcoef(elem1, elem2)[0, 1]
-    elif method == 'distance':
-        strength = np.linalg.norm(elem1 - elem2)
-    else:
-        raise ValueError("Unsupported method. Supported methods are 'correlation' and 'distance'.")
-
-    return strength
-
-def enough_strength(strength, method, threshold):
-    if method == 'correlation':
-        return strength >= threshold
-    elif method == 'distance':
-        return strength <= threshold
-    else:
-        raise ValueError("Unsupported method. Supported methods are 'correlation' and 'distance'.")
-
-
-# once the dictionary has been refreshed, I have to change name to every cluster > i to i-1 and to remove clusters_list[i]
-def remove_cluster(neighbours_strength_dict, to_be_removed, clusters_list):
-    for key in list(neighbours_strength_dict.keys()):
-        # there could be more than one cluster_i in the same key to be updated
-        updated = False
-        for cluster_num in range(to_be_removed+1, len(clusters_list)): 
-            
-            if ("cluster", cluster_num) in key:
-                if updated:
-                    decomposed_key = modified_key
-                else:
-                    decomposed_key = key
-
-                new_key = tuple(
-                    (
-                        ("cluster", cluster_num - 1)
-                        if subkey == ("cluster", cluster_num)
-                        else subkey
-                    )
-                    for subkey in decomposed_key
-                )                
-                modified_key = new_key
-                updated = True    
-
-        if updated:
-            neighbours_strength_dict[new_key] = neighbours_strength_dict.pop(key)
-    
-    new_clusters_list = clusters_list[:to_be_removed] + clusters_list[to_be_removed+1:]
-    return new_clusters_list
-
-
-"""
+    avg_total_correlation = avg_total_correlation/len(clusters_no_singletons)
+    print(f'Avg. Total correlation : {avg_total_correlation}') 
