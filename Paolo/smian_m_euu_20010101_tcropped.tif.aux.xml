@@ -1,0 +1,37 @@
+<PAMDataset>
+  <Metadata>
+    <MDI key="01.title">Soil Moisture Index Anomaly (SMA)</MDI>
+    <MDI key="02.abstract">Anomaly of LISFLOOD modelled top Soil Moisture Index (SMI) at 5 km resolution. &lt;br /&gt;&lt;br /&gt;In the EDO MapViewer, visualized cells have a spatial resolution of about 10 km for scales smaller than 1:750000, while cells of 5 km are displayed when zoomed into detail, at scales larger than 1:750000.&lt;br /&gt;&lt;br /&gt;WARNING! From the 11th of March 2019, soil moisture and low-flow index data have been upgraded to a new version with a larger spatial extent, based on the latest LISFLOOD model.&lt;br /&gt;Please note that these new data are still under evaluation and are not fully validated.</MDI>
+    <MDI key="03.units">dimensionless</MDI>
+    <MDI key="04.license">Creative Commons Attribution v4</MDI>
+    <MDI key="05.citation_statement">The proprietary rights and copyright of these data remain with the European Commission, Joint Research Centre (JRC). Reproduction for non-commercial purposes is authorised, provided the source is acknowledged. Reports, articles, papers, scientific and non-scientific works of any form, including tables, maps, or any other kind of output, in printed or electronic form, based in whole or in part on the data supplied, must contain an acknowledgement of the form: European Drought Observatory, https://edo.jrc.ec.europa.eu (C) European Commission - JRC, 2012 - 202x.</MDI>
+    <MDI key="06.categories">climatologyMeteorologyAtmosphere </MDI>
+    <MDI key="07.data_srs">EPSG:3035</MDI>
+    <MDI key="08.extent">-24.67,27,49.58,71.25</MDI>
+    <MDI key="09.resolution">5 kilometer</MDI>
+    <MDI key="10.time_series_start_day">1995-01-01</MDI>
+    <MDI key="11.frequency">ten-daily</MDI>
+    <MDI key="12.organisation">European Commission DG Joint Research Centre (JRC)</MDI>
+    <MDI key="13.contact_person">Alfred de Jager</MDI>
+    <MDI key="14.email">alfred.de-jager@ec.europa.eu</MDI>
+    <MDI key="15.ref_publication">Cammalleri, C., Vogt, J. V., Bisselink, B., &amp; de Roo, A. (2017). Comparing soil moisture anomalies from multiple independent sources over different regions across the globe. Hydrology and Earth System Sciences, 21(12), 6329.</MDI>
+    <MDI key="16.ref_publication_url">https://hess.copernicus.org/articles/21/6329/2017/</MDI>
+    <MDI key="17.factsheet_url">https://edo.jrc.ec.europa.eu/documents/factsheets/factsheet_soilmoisture.pdf</MDI>
+    <MDI key="18.jrc_data_catalogue_url">https://data.jrc.ec.europa.eu/dataset/882501f9-b783-4b6e-8aca-1875a7c0b372</MDI>
+    <MDI key="19.sample_url">https://edo.jrc.ec.europa.eu/edov2/php/ows.php?SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetMap&amp;SRS=EPSG:4326&amp;BBOX=-41,25,76,76&amp;WIDTH=1110&amp;HEIGHT=510&amp;STYLE=&amp;FORMAT=image/png&amp;TIME=2020-07-11&amp;LAYERS=SMI%20Anomaly</MDI>
+    <MDI key="20.metadata_last_updated">2021-07-06</MDI>
+    <MDI key="21.values_legend">[Less than or equal to -2, -2 to -1.5, -1.5 to -1] : Drier than normal; [-1 to 1] : Near Normal conditions; [1 to 1.5, 1.5 to 2, greater than or equal to 2] : Wetter than normal</MDI>
+    <MDI key="22.version_notes">Valid version(s) for the time series: Version 2.1.0 covers data from 1995-01-01 to the current date. Version 2.1.0 notes: Based on Soil Moisture Index, EFAS 4.0. Baseline until 2019.    </MDI>
+    <MDI key="long_name">ANOMALY_0101</MDI>
+  </Metadata>
+  <PAMRasterBand band="1">
+    <Description>ANOMALY_0101</Description>
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">1.9079300165176</MDI>
+      <MDI key="STATISTICS_MEAN">0.95852245975988</MDI>
+      <MDI key="STATISTICS_MINIMUM">0.12026000022888</MDI>
+      <MDI key="STATISTICS_STDDEV">0.33437824624013</MDI>
+      <MDI key="STATISTICS_VALID_PERCENT">37.62</MDI>
+    </Metadata>
+  </PAMRasterBand>
+</PAMDataset>

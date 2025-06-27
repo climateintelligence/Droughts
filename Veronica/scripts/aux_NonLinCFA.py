@@ -500,3 +500,67 @@ def compare_methods(aggregate_trainVal, aggregate_test, target_df_trainVal, targ
     print(f'Aggregate regression train score with FS: {fs_aggr_regr_train_score}, test score: {fs_aggr_regr_score}')
 
     return fs_aggr_regr_score 
+
+def aggregate_unfolded_data_pca(path, colnames, target_df_trainVal, eps, multiple=False, max_train='2013-11-22', 
+                            max_val='2018-04-10', max_test='2022-12-31', neigh=1, scale = 0.1, curr_seed = 42, 
+                            shuffle = False, no_tiny_aggregations = False, exclude_lowcorr=False, cols_order = "bottom_left", 
+                            adaptive_eps = False, aggreg_small_coord_groups = True, no_winter = False, only_winter = False):
+
+    aggregate_trainVal = pd.DataFrame()
+    aggregate_test = pd.DataFrame()
+    outputs = []
+
+    for col in colnames:
+        df_train_unfolded_std,df_val_unfolded_std,df_test_unfolded_std,df_trainVal_unfolded_std = prepare_features(path,col,multiple,max_train,max_val,max_test, 
+                                                                                                                   cols_order = cols_order, no_winter = no_winter, only_winter = only_winter)
+        
+        if shuffle:
+            # shuffle columns, useless with internal ordering 
+            df_trainVal_unfolded_std = df_trainVal_unfolded_std[np.random.default_rng(seed=curr_seed).permutation(df_trainVal_unfolded_std.columns.values)] 
+            df_test_unfolded_std = df_test_unfolded_std[np.random.default_rng(seed=curr_seed).permutation(df_test_unfolded_std.columns.values)]
+            
+        df_trainVal_unfolded_std_withTar = pd.concat((df_trainVal_unfolded_std,target_df_trainVal['mean_std']), axis=1)
+        
+        #starting_point = [df_trainVal_unfolded_std.columns[0].split('_')[1], df_trainVal_unfolded_std.columns[0].split('_')[2]]
+        
+        print(f'Number of features: {df_train_unfolded_std.shape[1]}\n')
+         
+        # output = NonLinCFA(df_trainVal_unfolded_std_withTar,'mean_std', eps, -5 , neigh).compute_clusters(shuffle_starting_point_only = shuffle_starting_point_only, random_seed = curr_seed)
+        # dyn_eps = eps/(df_train_unfolded_std.shape[1]**2)
+        # dyn_eps = eps/(np.sqrt(df_train_unfolded_std.shape[1]))
+        
+        dyn_eps = eps/df_train_unfolded_std.shape[1]
+        print("eps value: ", dyn_eps)
+        
+        if (len(df_trainVal_unfolded_std_withTar.columns) > 10) or aggreg_small_coord_groups:
+            output = NonLinCFA(df_trainVal_unfolded_std_withTar,'mean_std', dyn_eps, -5 , neigh, scale = scale).compute_clusters(adaptive_eps)
+        else:
+            output = [[col] for col in df_trainVal_unfolded_std.columns]
+        #i = 0
+        #while ((len(output) < min_aggreg_len) or (len(output) > max_aggreg_len)) and (i < 20):
+        #    if len(output) < min_aggreg_len:
+        #        print("Only ", str(len(output)), " aggreg found. Making eps smaller.")
+        #        dyn_eps = dyn_eps/2
+        #        print("New eps value: ", str(dyn_eps))
+        #        output = NonLinCFA(df_trainVal_unfolded_std_withTar,'mean_std', dyn_eps, -5 , neigh).compute_clusters(adaptive_eps)
+        #    elif len(output) > max_aggreg_len:
+        #        print(str(len(output)), " aggreg found. Making eps bigger.")
+        #         dyn_eps = dyn_eps*2
+        #        output = NonLinCFA(df_trainVal_unfolded_std_withTar,'mean_std', dyn_eps, -5 , neigh).compute_clusters(adaptive_eps)
+        #    i+=1
+
+
+        for i in range(len(output)):
+            aggregate_trainVal[col+'_'+str(i)] = df_trainVal_unfolded_std_withTar[output[i]].mean(axis=1)
+            aggregate_trainVal = aggregate_trainVal.copy()
+            aggregate_test[col+'_'+str(i)] = df_test_unfolded_std[output[i]].mean(axis=1)
+            aggregate_test = aggregate_test.copy()
+        print(f'Number of aggregated features: {len(output)}\n')
+        
+        if no_tiny_aggregations & exclude_lowcorr:
+            output, aggregate_trainVal, aggregate_test = remove_tiny_aggreg_exclude_lowcorr(output, aggregate_trainVal, aggregate_test, col, eps, df_trainVal_unfolded_std, df_test_unfolded_std, df_trainVal_unfolded_std_withTar, min_num_coord = 2)
+        elif no_tiny_aggregations:
+            output, aggregate_trainVal, aggregate_test = remove_tiny_aggreg(output, aggregate_trainVal, aggregate_test, col, eps, df_trainVal_unfolded_std, df_test_unfolded_std, df_trainVal_unfolded_std_withTar, min_num_coord = 2)
+            
+        outputs.append(output)
+    return outputs,aggregate_trainVal,aggregate_test 

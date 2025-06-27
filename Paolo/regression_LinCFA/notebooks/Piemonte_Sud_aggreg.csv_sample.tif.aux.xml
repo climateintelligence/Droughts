@@ -1,0 +1,16 @@
+<PAMDataset>
+  <Metadata>
+    <MDI key="long_name">ID</MDI>
+    <MDI key="name">ID</MDI>
+  </Metadata>
+  <PAMRasterBand band="1">
+    <Description>ID</Description>
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">5.2450960366091</MDI>
+      <MDI key="STATISTICS_MEAN">4.2338026727217</MDI>
+      <MDI key="STATISTICS_MINIMUM">3.0408653166467</MDI>
+      <MDI key="STATISTICS_STDDEV">0.31351430700998</MDI>
+      <MDI key="STATISTICS_VALID_PERCENT">19.81</MDI>
+    </Metadata>
+  </PAMRasterBand>
+</PAMDataset>

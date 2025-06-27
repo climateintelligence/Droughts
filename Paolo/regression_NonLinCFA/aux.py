@@ -77,7 +77,7 @@ def prepare_features(path, colName, multiple=False, max_train='2013-11-22', max_
         else: df = pd.read_csv(path)
     else: df = path 
 
-    df_train = df.loc[(df['date']>'2010-09-10') & (df['date']<=max_train),:]
+    df_train = df.loc[(df['date']>'1990-09-10') & (df['date']<=max_train),:]
     df_val = df.loc[(df['date']>max_train) & (df['date']<=max_val),:]
     df_test = df.loc[(df['date']>max_val) & (df['date']<=max_test),:]
     
@@ -107,6 +107,7 @@ def aggregate_unfolded_data(path,colnames, target_df_trainVal, eps, multiple=Fal
         df_train_unfolded_std,df_val_unfolded_std,df_test_unfolded_std,df_trainVal_unfolded_std = prepare_features(path,col,multiple,max_train,max_val,max_test)
         df_trainVal_unfolded_std_withTar = pd.concat((df_trainVal_unfolded_std,target_df_trainVal['mean_std']), axis=1)
         print(f'Number of features: {df_train_unfolded_std.shape[1]}\n') 
+        #df_trainVal_unfolded_std_withTar = df_trainVal_unfolded_std_withTar[np.random.default_rng(seed=42).permutation(df_trainVal_unfolded_std_withTar.columns.values)]
         output = NonLinCFA(df_trainVal_unfolded_std_withTar,'mean_std', eps, -5 , neigh).compute_clusters()
 
         for i in range(len(output)):
