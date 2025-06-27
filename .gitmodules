@@ -1,0 +1,3 @@
+[submodule "thesis_Teo"]
+	path = thesis_Teo
+	url = https://github.com/teobucci/thesis.git
